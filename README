@@ -1,0 +1,78 @@
+This is a mirror of http://www.vim.org/scripts/script.php?script_id=598
+
+Description:
+  The aim of this plugin is to allow users to define lengthy normal mode
+  mappings (and thus increase the name-space) and still be able to type the
+  mappings comfortably, thus reducing the chance of making mistakes or
+  getting timed out. When you make mistakes in typing (resulting in an
+  invalid map) or pause for long enough, the control goes to the plugin
+  instead of getting aborted, which then prompts you to continue typing or
+  correct the map, without needing to start all over.
+                                                                             
+  The plugin provided a generic functions called ExecMap() and ExecMap2()
+  which need to be defined as the handler for the set of maps starting with
+  a common prefix. It by default defines this as the handler for the prefix
+  "\" and "_" (without the quotes) so that for all the mappings that start
+  with these prefixes, the plugin provides a backup on errors and time out
+  cases. But you can define additional mappings for additional prefixes such
+  as "," etc.
+                                                                             
+      nnoremap , :call ExecMap(',')<CR>
+                                                                             
+  As you enter key strokes to complete a command, the plugin looks up the
+  partial command in the complete list of normal or visual mode mapping (as
+  the per the case) and rejects the key strokes if it doesn't match with
+  any. When the command matches an existing map with no conflicts, it gets
+  immediately executed. When the command matches a map, but there is a
+  longer map that could be matched, the plugin indicates this by displaying
+  a "*" at which point you can press <Enter> to execute the map, or continue
+  to type to match the longer command. Here is an example to describe it
+  better, say you have two maps as below:
+                                                                             
+      nnoremap \ma :echo "ma"<CR>
+      nnoremap \maxi :echo "maxi"<CR>
+                                                                             
+  Typing "\ma" would match one of the mappings completely, but it would also
+  match "\maxi" partially, so the plugin allows you to continue to type
+  until you press <CR>. However, whenever there is an exact match for the
+  current command with an existing map, the plugin indicates it by appending
+  a "*" to the prompt (pressing <CR> at that moment would execute a valid
+  command). I have found it working well for both normal and visual mode
+  mappings.
+                                                                             
+  You can use <BS> to clear the previous character and press <Esc> or <C-C>
+  to cancel it anytime. You can also press <Enter> to execute the command
+  that is typed in, but it has to match a valid map.
+                                                                             
+  Note that this functionality was originally part of genutils plugin, but
+  it is more appropriate for it to be a separate plugin rather than a
+  library function so it is no longer part of genutils.
+                                                                             
+Function Prototypes:
+    " Add a handler for all the maps that share the given prefix in
+    "	  normal mode.
+    void ExecMap(String prefix)
+                                                                             
+    " Add a handler for all the maps that share the given prefix in
+    "	  the given mode. Only normal and visual modes are supported.
+    void ExecMap2(String prefix, String mode)
+                                                                             
+    " Prompt user for a map with the given prefix in the given mode and
+    "	  return the map. The return value could be executed using :normal
+    "	  command. If the user cancels the operation, it returns an empty
+    "	  string. Only normal and visual modes are supported.
+    String ExecMapPrompt(String prefix, String mode)
+Limitations:
+  - You can only execute maps that are complete to be executable using
+    :normal exmode command (see help on :normal). One example map that will
+    not work is:
+                                                                             
+      nnoremap _ab :call input('ab command')<CR>
+                                                                             
+    If you execute the above command using ":normal _ab", it will not run as
+    expected. Similarly, maps that are supposed to leave you on the : prompt
+    don't work as well.
+
+
+
+Search_key_words: execmap execmap.vim normal visual mode map maps genutils relax comfort Hari Krishna Dara
