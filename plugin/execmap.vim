@@ -1,12 +1,16 @@
 " execmap.vim - Lets you relax while executing long normal mode maps 
 " Author: Hari Krishna Dara <hari_vim at yahoo dot com>
-" Last Change: 22-Mar-2003 @ 13:59PM
+" Last Change: 29-Sep-2003 @ 15:33PM
 " Created:     17-Mar-2003
 " Requires: Vim-6.0
-" Version: 1.0.2
+" Version: 1.2.0
 " Licence: This program is free software; you can redistribute it and/or
 "          modify it under the terms of the GNU General Public License.
 "          See http://www.gnu.org/copyleft/gpl.txt 
+" Acknowledgements:
+"     -	Srinath Avadhanula ( srinath at fastmail dot fm ) for improving the
+"	script to work with visual mode mappings also (as part of his
+"	vim-latex project).
 " Download From:
 "     http://www.vim.org/script.php?script_id=598
 " Description:
@@ -40,11 +44,14 @@ if exists("loaded_execmap")
 endif
 let loaded_execmap=1
 
+nmap <silent> <script> <plug>«SelectRegion» `<v`>
 
 if (! exists("no_plugin_maps") || ! no_plugin_maps) &&
       \ (! exists("no_execmap_maps") || ! no_execmap_maps)
-   nnoremap \ :call ExecMap('\')<CR>
-   nnoremap _ :call ExecMap('_')<CR>
+   nnoremap \ :call ExecMap2('\', 'n')<CR>
+   nnoremap _ :call ExecMap2('_', 'n')<CR>
+   vnoremap \ :call ExecMap2('\', 'v')<CR>
+   vnoremap _ :call ExecMap2('_', 'v')<CR>
 endif
 
 
@@ -108,9 +115,16 @@ function! ExecMap2(prefix, mode)
   endwhile
   if foundMap
     if a:mode == 'v'
-      normal gv
+      "normal gv
+      " use a plug to select the region instead of using something like
+      " `<v`> to avoid problems caused by some of the characters in
+      " '`<v`>' being mapped.
+      let gotoc = "\<plug>«SelectRegion»"
+    else
+      let gotoc = ''
     endif
-    exec "normal" mapCmd
+    "exec "normal" mapCmd
+    exec "normal ".gotoc.mapCmd
   endif
   exec a:mode . "noremap" a:prefix myMap
   "echomsg "Leaving ExecMap2: prefix: " . a:prefix . ' mode: ' . a:mode . ' myMap: ' . maparg(a:prefix, a:mode)
