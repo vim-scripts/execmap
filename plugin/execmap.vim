@@ -1,9 +1,9 @@
 " execmap.vim - Lets you relax while executing long normal mode maps 
 " Author: Hari Krishna Dara (hari_vim at yahoo dot com)
-" Last Change: 29-Mar-2004 @ 12:54
+" Last Change: 31-Mar-2004 @ 23:58
 " Created:     17-Mar-2003
-" Requires: Vim-6.2.293, genutils.vim (1.10)
-" Version: 1.3.3
+" Requires: Vim-6.3, genutils.vim (1.10)
+" Version: 1.4.1
 " Licence: This program is free software; you can redistribute it and/or
 "          modify it under the terms of the GNU General Public License.
 "          See http://www.gnu.org/copyleft/gpl.txt 
@@ -24,22 +24,25 @@
 "   instead of getting aborted, which then prompts you to continue typing or
 "   correct the map, without needing to start all over.
 "
-"   The plugin provided a generic function called ExecMap() which needs to be
-"   defined as the handler for the set of maps starting with a common prefix.
-"   It by default defines this as the handler for the prefix "\" and "_"
-"   (without the quotes) so that for all the mappings that start with these
-"   prefixes, the plugin provides a backup on errors and time out cases. But
-"   you can define additional mappings for additional prefixes such as ","
-"   etc.
+"   The plugin provided a generic functions called ExecMap() and ExecMap2()
+"   which need to be defined as the handler for the set of maps starting with
+"   a common prefix. It by default defines this as the handler for the prefix
+"   "\" and "_" (without the quotes) so that for all the mappings that start
+"   with these prefixes, the plugin provides a backup on errors and time out
+"   cases. But you can define additional mappings for additional prefixes such
+"   as "," etc.
 "
 "	nnoremap , :call ExecMap(',')<CR>
 "
-"   At anytime as soon as the command that is typed matches an existing map
-"   completely and if there are no other maps that would match partially, the
-"   command is executed just like Vim would do. But if there are other maps
-"   that would match this command partially, then you need to press <CR> to
-"   let the plugin accept the command and execute it. Here is an example to
-"   describe it better, say you have two maps as below:
+"   As you enter key strokes to complete a command, the plugin looks up the
+"   partial command in the complete list of normal or visual mode mapping (as
+"   the per the case) and rejects the key strokes if it doesn't match with
+"   any. When the command matches an existing map with no conflicts, it gets
+"   immediately executed. When the command matches a map, but there is a
+"   longer map that could be matched, the plugin indicates this by displaying
+"   a "*" at which point you can press <Enter> to execute the map, or continue
+"   to type to match the longer command. Here is an example to describe it
+"   better, say you have two maps as below:
 "
 "	nnoremap \ma :echo "ma"<CR>
 "	nnoremap \maxi :echo "maxi"<CR>
@@ -49,12 +52,31 @@
 "   until you press <CR>. However, whenever there is an exact match for the
 "   current command with an existing map, the plugin indicates it by appending
 "   a "*" to the prompt (pressing <CR> at that moment would execute a valid
-"   command).
+"   command). I have found it working well for both normal and visual mode
+"   mappings.
 "
-"   I have found it working well for both normal and visual mode mappings.
-"   This function was originally part of genutils plugin, but it is more
-"   appropriate for it to be a plugin rather than a library function.
+"   You can use <BS> to clear the previous character and press <Esc> or <C-C>
+"   to cancel it anytime. You can also press <Enter> to execute the command
+"   that is typed in, but it has to match a valid map.
 "
+"   Note that this functionality was originally part of genutils plugin, but
+"   it is more appropriate for it to be a separate plugin rather than a
+"   library function so it is no longer part of genutils.
+"
+" Function Prototypes:
+"     " Add a handler for all the maps that share the given prefix in
+"     "	  normal mode.
+"     void ExecMap(String prefix)
+"
+"     " Add a handler for all the maps that share the given prefix in
+"     "	  the given mode. Only normal and visual modes are supported.
+"     void ExecMap2(String prefix, String mode)
+"
+"     " Prompt user for a map with the given prefix in the given mode and
+"     "	  return the map. The return value could be executed using :normal
+"     "	  command. If the user cancels the operation, it returns an empty
+"     "	  string. Only normal and visual modes are supported.
+"     String ExecMapPrompt(String prefix, String mode)
 " Limitations:
 "   - You can only execute maps that are complete to be executable using
 "     :normal exmode command (see help on :normal). One example map that will
@@ -63,13 +85,17 @@
 "	nnoremap _ab :call input('ab command')<CR>
 "
 "     If you execute the above command using ":normal _ab", it will not run as
-"     expected.
+"     expected. Similarly, maps that are supposed to leave you on the : prompt
+"     don't work as well.
 " TODO:
 
 if exists("loaded_execmap")
   finish
 endif
-let loaded_execmap=103
+if v:version < 603
+  echomsg 'execmap: You need at least Vim 6.3'
+  finish
+endif
 
 if !exists("loaded_genutils")
   runtime plugin/genutils.vim
@@ -78,6 +104,7 @@ if !exists("loaded_genutils") || loaded_genutils < 110
   echomsg "execmap: You need a newer version of genutils.vim plugin"
   finish
 endif
+let loaded_execmap=104
 
 nnoremap <silent> <script> <Plug>ExecMapSelectRegion gv
 
@@ -96,13 +123,24 @@ function! ExecMap(prefix) range
   call ExecMap2(a:prefix, 'n')
 endfunction
 
-" Receives a spurious key stroke in visual mode.
 function! ExecMap2(prefix, mode) range
+  let mapCmd = ExecMapPrompt(a:prefix, a:mode)
+  if mapCmd != ''
+    exec "normal ".mapCmd
+  endif
+endfunction
+
+" Receives a spurious key stroke in visual mode.
+function! ExecMapPrompt(prefix, mode) range
   " Temporarily remove the mapping, otherwise it will interfere with the
   " mapcheck call below:
-  let myMap = maparg(a:prefix, a:mode)
-  exec a:mode . "unmap" a:prefix
-  "echoerr "In ExecMap2: prefix: " . a:prefix . ' mode: ' . a:mode . ' myMap: ' . maparg(a:prefix, a:mode)
+  if a:prefix != ''
+    let myMap = maparg(a:prefix, a:mode)
+    if myMap != ''
+      exec a:mode . "unmap" a:prefix
+      "echoerr "In ExecMap2: prefix: " . a:prefix . ' mode: ' . a:mode . ' myMap: ' . maparg(a:prefix, a:mode)
+    endif
+  endif
 
   " Generate a line with spaces to clear the previous message.
   let i = 1
@@ -118,7 +156,11 @@ function! ExecMap2(prefix, mode) range
   let curMatch = ''
   call s:Prompt('', mapCmd)
   while !breakLoop
-    let char = getchar()
+    try
+      let char = getchar()
+    catch /^Vim:Interrupt$/
+      let char = "\<Esc>"
+    endtry
     "exec BPBreakIf(cnt == 1, 2)
     if char == '^\d\+$' || type(char) == 0
       let char = nr2char(char)
@@ -164,10 +206,15 @@ function! ExecMap2(prefix, mode) range
       " being mapped (we use :normal not :normal!).
       let gotoc = "\<Plug>ExecMapSelectRegion"
     endif
-    exec "normal ".gotoc.mapCmd
+    let mapCmd = gotoc.mapCmd
+  else
+    let mapCmd = ''
   endif
-  exec a:mode . "noremap" a:prefix myMap
+  if a:prefix != '' && myMap != ''
+    exec a:mode . "noremap" a:prefix myMap
+  endif
   "echomsg "Leaving ExecMap2: prefix: " . a:prefix . ' mode: ' . a:mode . ' myMap: ' . maparg(a:prefix, a:mode)
+  return mapCmd
 endfunction
 
 function! s:Prompt(spe, mapCmd)
